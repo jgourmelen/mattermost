@@ -17,24 +17,43 @@ spec:
       containers:
         - name: nginx
           image: mattermost/mattermost-prod-app:v5.30.1
+          imagePullPolicy: "Always"
           ports:
             - containerPort: 80
           env:
-            - name: POSTGRES_DB
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT_NUMBER
+              value: "5432"
+            - name: MM_DBNAME
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: db
-            - name: POSTGRES_PASSWORD
+            - name: MM_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: password
-            - name: POSTGRES_USER
+            - name: MM_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: user
+          volumeMounts:
+            - name: config-volume
+              mountPath: /mattermost/config/config.json
+              subPath: config.json
+              readOnly: false
+      volumes:
+        - name: config-volume
+          configMap:
+            defaultMode: 0777
+            name: mattermost-config-json
+            items:
+              - key: config.json
+                path: config.json
+
 
 ---
 
@@ -658,9 +677,9 @@ kind: Secret
 metadata:
   name: postgres-secret
 data:
-  user: bWF0dGVybW9zdAo=
-  password: YXplcnR5dWlvcAo=
-  db: bWF0dGVybW9zdAo=
+  user: bWF0dGVybW9zdA==
+  password: YXplcnR5dWlvcA==
+  db: bWF0dGVybW9zdA==
 
 ---
 apiVersion: apps/v1
@@ -679,8 +698,8 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:9
-          imagePullPolicy: "IfNotPresent"
+          image: postgres
+          imagePullPolicy: "Always"
           ports:
             - containerPort: 5432
           env:

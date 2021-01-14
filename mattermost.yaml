@@ -20,28 +20,59 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: POSTGRES_USER
+            - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: mattermost-secret
-                  key: username
-            - name: POSTGRES_PASSWORD #Secret Kind
+                  name: postgres-secret
+                  key: db
+            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: password
-            - name: POSTGRES_DB
-              value: mattermost
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: user
 
 ---
-apiVersion: v1
-kind: Secret
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: mattermost-secret
-data:
-  username: bWF0dGVybW9zdAo=
-  password: YXplcnR5dWlvcAo=
+  name: mattermost
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: mattermost.local
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: http
+              port:
+                number: 80
+
 ---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mattermost
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+
+---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -627,8 +658,9 @@ kind: Secret
 metadata:
   name: postgres-secret
 data:
-  username: bWF0dGVybW9zdAo=
+  user: bWF0dGVybW9zdAo=
   password: YXplcnR5dWlvcAo=
+  db: bWF0dGVybW9zdAo=
 
 ---
 apiVersion: apps/v1
@@ -652,8 +684,18 @@ spec:
           ports:
             - containerPort: 5432
           env:
+            - name: POSTGRES_DB  #creDB un kind Secret
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: db
             - name: POSTGRES_PASSWORD  #creer un kind Secret
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: password
+            - name: POSTGRES_USER  #creer un kind Secret
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: user
